@@ -75,7 +75,6 @@
 				EA81E414247AA25A001F6B4D /* Views */,
 				EA81E427247AB10A001F6B4D /* Controllers */,
 				EA81E425247AB0E5001F6B4D /* Manager */,
-				EA81E428247AB276001F6B4D /* Document */,
 				EA81E426247AB0EF001F6B4D /* Utilities */,
 				EA81E413247AA161001F6B4D /* Supporting Files */,
 			);
@@ -116,6 +115,7 @@
 			isa = PBXGroup;
 			children = (
 				EA81E41C247AB069001F6B4D /* EmojiArt.swift */,
+				EA81E403247A8F71001F6B4D /* EmojiArtDocument.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -143,14 +143,6 @@
 				EA81E3FF247A8F71001F6B4D /* DocumentBrowserViewController.swift */,
 			);
 			path = Controllers;
-			sourceTree = "<group>";
-		};
-		EA81E428247AB276001F6B4D /* Document */ = {
-			isa = PBXGroup;
-			children = (
-				EA81E403247A8F71001F6B4D /* EmojiArtDocument.swift */,
-			);
-			path = Document;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

@@ -135,12 +135,6 @@ final class EmojiArtViewController: UIViewController {
         }
     }
     
-    private func documentChanged() {
-        document?.emojiArt = emojiArt
-        if document?.emojiArt != nil {
-            document?.updateChangeCount(.done)
-        }
-    }
 }
 
     // MARK: - EmojiArtViewDelegate
@@ -148,9 +142,12 @@ final class EmojiArtViewController: UIViewController {
 extension EmojiArtViewController: EmojiArtViewDelegate {
     
     func emojiArtViewDidChange(_ sender: EmojiArtView) {
-        documentChanged()
+        document?.emojiArt = emojiArt
+        if document?.emojiArt != nil {
+            document?.updateChangeCount(.done)
+        }
     }
-    
+
 }
 
     // MARK: - UIScrollViewDelegate
