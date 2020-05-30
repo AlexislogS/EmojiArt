@@ -49,7 +49,7 @@ class DocumentBrowserViewController: UIDocumentBrowserViewController, UIDocument
     }
     
     func documentBrowser(_ controller: UIDocumentBrowserViewController, failedToImportDocumentAt documentURL: URL, error: Error?) {
-        showAlert(with: "Failed to import", and: "Something wrong with document")
+        showAlert(with: "Error", and: "Failed to import a document")
     }
     
     // MARK: Document Presentation
@@ -60,9 +60,9 @@ class DocumentBrowserViewController: UIDocumentBrowserViewController, UIDocument
         let documentVC = storyBoard.instantiateViewController(withIdentifier: "DocumentMVC")
         if let emojiVC = documentVC.contents as? EmojiArtViewController {
             emojiVC.document = EmojiArtDocument(fileURL: documentURL)
-            documentVC.modalPresentationStyle = .fullScreen
-            present(documentVC, animated: true)
         }
+        documentVC.modalPresentationStyle = .fullScreen
+        present(documentVC, animated: true)
     }
     
     private func showAlert(with title: String, and message: String) {

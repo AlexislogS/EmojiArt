@@ -52,18 +52,17 @@ final class EmojiArtViewController: UIViewController {
         }
     }
     
-    private lazy var emojiArtView: EmojiArtView = {
-        let emojiView = EmojiArtView()
-        emojiView.delegate = self
-        return emojiView
-    }()
-    
+    lazy var emojiArtView = EmojiArtView()
     var document: EmojiArtDocument?
-    
+    private let notificationCenter = NotificationCenter.default
+    private var emojiArtViewObserver: NSObjectProtocol?
     private var imageFetcherManager: ImageFetcherManager!
     private var emojis = "🐶🐭🦊🦋🐢🐸🐵🐞🐿🐇🐯".map { String($0) }
     private var addingEmoji = false
+    private var suppressedBadURLWarnings = false
     private var _emojiArtBackgroundImageURL: URL?
+    private var alertPresentedCount = 0
+    private var previousURL: URL?
     
     private var emojiArtBackgroundImage: (url: URL?, image: UIImage?) {
         get {
@@ -117,6 +116,14 @@ final class EmojiArtViewController: UIViewController {
             if success {
                 self.title = self.document?.localizedName
                 self.emojiArt = self.document?.emojiArt
+                self.emojiArtViewObserver = self.notificationCenter.addObserver(
+                    forName: .emojiArtViewDidChange,
+                    object: self.emojiArtView,
+                    queue: .main,
+                    using: { notification in
+                        self.documentChanged()
+                }
+                )
             }
         })
     }
@@ -127,6 +134,9 @@ final class EmojiArtViewController: UIViewController {
     }
     
     @IBAction func closeDocument(_ sender: UIBarButtonItem) {
+        if let observer = emojiArtViewObserver {
+            notificationCenter.removeObserver(observer)
+        }
         if document?.emojiArt != nil {
             document?.thumbnail = emojiArtView.snapshot
         }
@@ -135,19 +145,6 @@ final class EmojiArtViewController: UIViewController {
         }
     }
     
-}
-
-    // MARK: - EmojiArtViewDelegate
-
-extension EmojiArtViewController: EmojiArtViewDelegate {
-    
-    func emojiArtViewDidChange(_ sender: EmojiArtView) {
-        document?.emojiArt = emojiArt
-        if document?.emojiArt != nil {
-            document?.updateChangeCount(.done)
-        }
-    }
-
 }
 
     // MARK: - UIScrollViewDelegate
@@ -317,7 +314,20 @@ extension EmojiArtViewController: UIDropInteractionDelegate {
         
         session.loadObjects(ofClass: NSURL.self) { nsURLs in
             if let url = nsURLs.first as? URL {
-                self.imageFetcherManager.fetch(url)
+//                self.imageFetcherManager.fetch(url)
+                DispatchQueue.global(qos: .userInitiated).async {
+                    if let imageData = try? Data(contentsOf: url.imageURL),
+                        let image = UIImage(data: imageData) {
+                        DispatchQueue.main.async {
+                            self.emojiArtBackgroundImage = (url, image)
+                            self.documentChanged()
+                        }
+                    } else {
+                        DispatchQueue.main.async {
+                            self.presentBadURLWarning(for: url)
+                        }
+                    }
+                }
             }
         }
         session.loadObjects(ofClass: UIImage.self) { images in
@@ -325,5 +335,37 @@ extension EmojiArtViewController: UIDropInteractionDelegate {
                 self.imageFetcherManager.backupImage = image
             }
         }
+    }
+    
+    private func documentChanged() {
+        document?.emojiArt = emojiArt
+        if document?.emojiArt != nil {
+            document?.updateChangeCount(.done)
+        }
+    }
+    
+    private func presentBadURLWarning(for url: URL?) {
+        if suppressedBadURLWarnings, previousURL == url {
+            alertPresentedCount += 1
+            if alertPresentedCount == 3 {
+                suppressedBadURLWarnings = false
+                alertPresentedCount = 0
+            }
+        }
+        guard !suppressedBadURLWarnings else { return }
+        previousURL = url
+        let alert = UIAlertController(
+            title: "Image Transfer Failed",
+            message: "Couldn't transfer the dropped image from its source. \nShow this warning in the future?",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "Keep Warning",
+                                      style: .default))
+        alert.addAction(UIAlertAction(title: "Stop Warning",
+                                      style: .destructive,
+                                      handler: { _ in
+                                        self.suppressedBadURLWarnings = true
+        }))
+        present(alert, animated: true)
     }
 }
