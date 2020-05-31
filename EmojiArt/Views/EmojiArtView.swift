@@ -8,10 +8,6 @@
 
 import UIKit
 
-protocol EmojiArtViewDelegate: AnyObject {
-    func emojiArtViewDidChange(_ sender: EmojiArtView)
-}
-
 final class EmojiArtView: UIView {
 
     private let notificationCenter = NotificationCenter.default
@@ -70,7 +66,7 @@ extension EmojiArtView: UIDropInteractionDelegate {
         label.center = point
         addEmojiGestureRecognizers(to: label)
         addSubview(label)
-        labelObservations[label] = label.observe(\.center) { (label, change) in
+        labelObservations[label] = label.observe(\.center) { (_, _) in
             self.notificationCenter.post(name: .emojiArtViewDidChange, object: self)
         }
     }

@@ -20,6 +20,7 @@
 		EA81E420247AB0A9001F6B4D /* EmojiArtViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA81E41F247AB0A9001F6B4D /* EmojiArtViewController.swift */; };
 		EA81E422247AB0B6001F6B4D /* ImageFetcherManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA81E421247AB0B5001F6B4D /* ImageFetcherManager.swift */; };
 		EA81E424247AB0C0001F6B4D /* Utility extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA81E423247AB0C0001F6B4D /* Utility extensions.swift */; };
+		EAAC95932483C0DF000B8211 /* DocumentInfoViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAAC95922483C0DF000B8211 /* DocumentInfoViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +39,7 @@
 		EA81E41F247AB0A9001F6B4D /* EmojiArtViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EmojiArtViewController.swift; sourceTree = "<group>"; };
 		EA81E421247AB0B5001F6B4D /* ImageFetcherManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageFetcherManager.swift; sourceTree = "<group>"; };
 		EA81E423247AB0C0001F6B4D /* Utility extensions.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Utility extensions.swift"; sourceTree = "<group>"; };
+		EAAC95922483C0DF000B8211 /* DocumentInfoViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentInfoViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -139,8 +141,9 @@
 		EA81E427247AB10A001F6B4D /* Controllers */ = {
 			isa = PBXGroup;
 			children = (
-				EA81E41F247AB0A9001F6B4D /* EmojiArtViewController.swift */,
 				EA81E3FF247A8F71001F6B4D /* DocumentBrowserViewController.swift */,
+				EA81E41F247AB0A9001F6B4D /* EmojiArtViewController.swift */,
+				EAAC95922483C0DF000B8211 /* DocumentInfoViewController.swift */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
@@ -216,6 +219,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EAAC95932483C0DF000B8211 /* DocumentInfoViewController.swift in Sources */,
 				EA81E41A247AB047001F6B4D /* TextFieldCollectionViewCell.swift in Sources */,
 				EA81E420247AB0A9001F6B4D /* EmojiArtViewController.swift in Sources */,
 				EA81E422247AB0B6001F6B4D /* ImageFetcherManager.swift in Sources */,

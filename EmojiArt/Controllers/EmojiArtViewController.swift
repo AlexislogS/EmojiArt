@@ -61,7 +61,7 @@ final class EmojiArtViewController: UIViewController {
     private var addingEmoji = false
     private var suppressedBadURLWarnings = false
     private var _emojiArtBackgroundImageURL: URL?
-    private var alertPresentedCount = 0
+    private var alertPresentedCountWithURL = 0
     private var previousURL: URL?
     
     private var emojiArtBackgroundImage: (url: URL?, image: UIImage?) {
@@ -120,12 +120,22 @@ final class EmojiArtViewController: UIViewController {
                     forName: .emojiArtViewDidChange,
                     object: self.emojiArtView,
                     queue: .main,
-                    using: { notification in
+                    using: { _ in
                         self.documentChanged()
                 }
                 )
             }
         })
+    }
+    
+    // MARK: - Navigation
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "Show Document Info",
+            let destinationVC = segue.destination.contents as? DocumentInfoViewController {
+            document?.thumbnail = emojiArtView.snapshot
+            destinationVC.document = document
+        }
     }
     
     @IBAction private func addEmoji() {
@@ -140,7 +150,7 @@ final class EmojiArtViewController: UIViewController {
         if document?.emojiArt != nil {
             document?.thumbnail = emojiArtView.snapshot
         }
-        dismiss(animated: true) {
+        presentingViewController?.dismiss(animated: true) {
             self.document?.close()
         }
     }
@@ -309,12 +319,12 @@ extension EmojiArtViewController: UIDropInteractionDelegate {
         imageFetcherManager = ImageFetcherManager() { (url, image) in
             DispatchQueue.main.async {
                 self.emojiArtBackgroundImage = (url, image)
+                self.documentChanged()
             }
         }
         
         session.loadObjects(ofClass: NSURL.self) { nsURLs in
             if let url = nsURLs.first as? URL {
-//                self.imageFetcherManager.fetch(url)
                 DispatchQueue.global(qos: .userInitiated).async {
                     if let imageData = try? Data(contentsOf: url.imageURL),
                         let image = UIImage(data: imageData) {
@@ -346,10 +356,10 @@ extension EmojiArtViewController: UIDropInteractionDelegate {
     
     private func presentBadURLWarning(for url: URL?) {
         if suppressedBadURLWarnings, previousURL == url {
-            alertPresentedCount += 1
-            if alertPresentedCount == 3 {
+            alertPresentedCountWithURL += 1
+            if alertPresentedCountWithURL == 3 {
                 suppressedBadURLWarnings = false
-                alertPresentedCount = 0
+                alertPresentedCountWithURL = 0
             }
         }
         guard !suppressedBadURLWarnings else { return }
