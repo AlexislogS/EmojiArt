@@ -55,6 +55,7 @@ final class EmojiArtViewController: UIViewController {
     lazy var emojiArtView = EmojiArtView()
     var document: EmojiArtDocument?
     private let notificationCenter = NotificationCenter.default
+    private var documentObserver: NSObjectProtocol?
     private var emojiArtViewObserver: NSObjectProtocol?
     private var imageFetcherManager: ImageFetcherManager!
     private var emojis = "🐶🐭🦊🦋🐢🐸🐵🐞🐿🐇🐯".map { String($0) }
@@ -63,6 +64,7 @@ final class EmojiArtViewController: UIViewController {
     private var _emojiArtBackgroundImageURL: URL?
     private var alertPresentedCountWithURL = 0
     private var previousURL: URL?
+    private var embeddedDocInfo: DocumentInfoViewController?
     
     private var emojiArtBackgroundImage: (url: URL?, image: UIImage?) {
         get {
@@ -109,9 +111,23 @@ final class EmojiArtViewController: UIViewController {
     
     @IBOutlet private weak var scrollViewHeight: NSLayoutConstraint!
     @IBOutlet private weak var scrollViewWidth: NSLayoutConstraint!
+    @IBOutlet private weak var embeddedDocInfoHeight: NSLayoutConstraint!
+    @IBOutlet private weak var embeddedDocInfoWidth: NSLayoutConstraint!
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        documentObserver = notificationCenter.addObserver(
+            forName: UIDocument.stateChangedNotification,
+            object: document,
+            queue: .main,
+            using: { _ in
+                if self.document?.documentState == .normal,
+                    let docInfoVC = self.embeddedDocInfo {
+                    docInfoVC.document = self.document
+                    self.embeddedDocInfoWidth.constant = docInfoVC.preferredContentSize.width
+                    self.embeddedDocInfoHeight.constant = docInfoVC.preferredContentSize.height
+                }
+        })
         document?.open(completionHandler: { success in
             if success {
                 self.title = self.document?.localizedName
@@ -131,10 +147,15 @@ final class EmojiArtViewController: UIViewController {
     // MARK: - Navigation
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        if segue.identifier == "Show Document Info",
-            let destinationVC = segue.destination.contents as? DocumentInfoViewController {
-            document?.thumbnail = emojiArtView.snapshot
-            destinationVC.document = document
+        if segue.identifier == "Show Document Info" {
+            if let destinationVC = segue.destination.contents as? DocumentInfoViewController {
+                destinationVC.document = document
+                if let ppc = destinationVC.popoverPresentationController {
+                    ppc.delegate = self
+                }
+            }
+        } else if segue.identifier == "Embed Document Info" {
+            embeddedDocInfo = segue.destination.contents as? DocumentInfoViewController
         }
     }
     
@@ -143,7 +164,7 @@ final class EmojiArtViewController: UIViewController {
         emojiCollectionView.reloadSections(IndexSet(integer: 0))
     }
     
-    @IBAction func closeDocument(_ sender: UIBarButtonItem) {
+    @IBAction func closeDocument(_ sender: UIBarButtonItem? = nil) {
         if let observer = emojiArtViewObserver {
             notificationCenter.removeObserver(observer)
         }
@@ -155,6 +176,9 @@ final class EmojiArtViewController: UIViewController {
         }
     }
     
+    @IBAction private func closeDocument(by segue: UIStoryboardSegue) {
+        closeDocument()
+    }
 }
 
     // MARK: - UIScrollViewDelegate
@@ -182,11 +206,7 @@ extension EmojiArtViewController: UICollectionViewDataSource, UICollectionViewDe
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        switch section {
-        case 0: return 1
-        case 1: return emojis.count
-        default: return 0
-        }
+        return section == 0 ? 1 : emojis.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -318,15 +338,15 @@ extension EmojiArtViewController: UIDropInteractionDelegate {
     func dropInteraction(_ interaction: UIDropInteraction, performDrop session: UIDropSession) {
         imageFetcherManager = ImageFetcherManager() { (url, image) in
             DispatchQueue.main.async {
-                self.emojiArtBackgroundImage = (url, image)
+                self.emojiArtBackgroundImage = (url.imageURL, image)
                 self.documentChanged()
             }
         }
         
         session.loadObjects(ofClass: NSURL.self) { nsURLs in
-            if let url = nsURLs.first as? URL {
+            if let url = (nsURLs.first as? URL)?.imageURL {
                 DispatchQueue.global(qos: .userInitiated).async {
-                    if let imageData = try? Data(contentsOf: url.imageURL),
+                    if let imageData = try? Data(contentsOf: url),
                         let image = UIImage(data: imageData) {
                         DispatchQueue.main.async {
                             self.emojiArtBackgroundImage = (url, image)
@@ -377,5 +397,14 @@ extension EmojiArtViewController: UIDropInteractionDelegate {
                                         self.suppressedBadURLWarnings = true
         }))
         present(alert, animated: true)
+    }
+}
+
+    // MARK: - UIPopoverPresentationControllerDelegate
+
+extension EmojiArtViewController: UIPopoverPresentationControllerDelegate {
+    
+    func adaptivePresentationStyle(for controller: UIPresentationController, traitCollection: UITraitCollection) -> UIModalPresentationStyle {
+        return .none
     }
 }

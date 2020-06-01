@@ -20,7 +20,7 @@ final class DocumentInfoViewController: UIViewController {
         return formatter
     }()
 
-    @IBOutlet private weak var thumbnailImageView: UIImageView!
+    @IBOutlet private weak var topLevelView: UIStackView!
     @IBOutlet private weak var sizeLabel: UILabel!
     @IBOutlet private weak var createdLabel: UILabel!
     
@@ -29,21 +29,30 @@ final class DocumentInfoViewController: UIViewController {
         updateUI()
     }
     
-    @IBAction private func done() {
-        presentingViewController?.dismiss(animated: true)
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        calculatePopOver()
     }
     
     private func updateUI() {
         if sizeLabel != nil, createdLabel != nil,
             let url = document?.fileURL,
             let attributes = try? FileManager.default.attributesOfItem(atPath: url.path) {
-            sizeLabel.text = "\(attributes[.size] ?? 0 ) bytes"
+            sizeLabel.text = "Size: \(attributes[.size] ?? 0) bytes"
             if let created = attributes[.creationDate] as? Date {
-                createdLabel.text = shortDateFormatter.string(from: created)
+                createdLabel.text = "Created: \(shortDateFormatter.string(from: created))"
             }
         }
-        if thumbnailImageView != nil, let thumbnail = document?.thumbnail {
-            thumbnailImageView.image = thumbnail
+        if popoverPresentationController != nil {
+            view.backgroundColor = .clear
+        }
+    }
+    
+    private func calculatePopOver() {
+        let gapForView: CGFloat = 30
+        if let fittedSize = topLevelView?.sizeThatFits(UIView.layoutFittingCompressedSize) {
+            preferredContentSize = CGSize(width: fittedSize.width + gapForView,
+                                          height: fittedSize.height + gapForView)
         }
     }
     
