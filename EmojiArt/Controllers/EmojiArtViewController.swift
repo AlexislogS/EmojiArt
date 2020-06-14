@@ -25,29 +25,52 @@ extension EmojiArt.EmojiInfo {
 
 final class EmojiArtViewController: UIViewController {
     
+    private enum ImageSource {
+        case remote(URL, UIImage)
+        case local(Data, UIImage)
+        
+        var image: UIImage {
+            switch self {
+            case .remote(_, let image): return image
+            case .local(_, let image): return image
+            }
+        }
+    }
+    
     // MARK: - Model
     
     private var emojiArt: EmojiArt? {
         get {
-            if let url = emojiArtBackgroundImage.url {
+            if let imageSource = emojiArtBackgroundImage {
                 let emojis = emojiArtView.subviews.compactMap { $0 as? UILabel }.compactMap { EmojiArt.EmojiInfo(label: $0) }
-                return EmojiArt(url: url, emojis: emojis)
+                switch imageSource {
+                case .remote(let url, _): return EmojiArt(url: url, emojis: emojis)
+                case .local(let imageData, _): return EmojiArt(imageData: imageData, emojis: emojis)
+                }
             }
             return nil
         }
         set {
-            emojiArtBackgroundImage = (nil, nil)
+            emojiArtBackgroundImage = nil
             emojiArtView.subviews.compactMap { $0 as? UILabel }.forEach { $0.removeFromSuperview() }
+            let imageData = newValue?.imageData
+            let image = (imageData != nil) ? UIImage(data: imageData!) : nil
             if let url = newValue?.url {
-                imageFetcherManager = ImageFetcherManager(fetch: url, handler: { (url, image) in
+                imageFetcherManager = ImageFetcherManager { (url, image) in
                     DispatchQueue.main.async {
-                        self.emojiArtBackgroundImage = (url, image)
-                        newValue?.emojis.forEach {
-                            let attributedText = $0.text.attributedString(withTextStyle: .body, ofSize: CGFloat($0.size))
-                            self.emojiArtView.addLabel(with: attributedText, centeredAt: CGPoint(x: $0.x, y: $0.y))
+                        if image == self.imageFetcherManager.backupImage {
+                            self.emojiArtBackgroundImage = .local(imageData!, image)
+                        } else {
+                            self.emojiArtBackgroundImage = .remote(url, image)
                         }
+                        self.addEmojisToView(from: newValue)
                     }
-                })
+                }
+                imageFetcherManager.backupImage = image
+                imageFetcherManager.fetch(url)
+            } else if image != nil {
+                emojiArtBackgroundImage = .local(imageData!, image!)
+                addEmojisToView(from: newValue)
             }
         }
     }
@@ -60,20 +83,15 @@ final class EmojiArtViewController: UIViewController {
     private var imageFetcherManager: ImageFetcherManager!
     private var emojis = "🐶🐭🦊🦋🐢🐸🐵🐞🐿🐇🐯".map { String($0) }
     private var addingEmoji = false
-    private var suppressedBadURLWarnings = false
-    private var _emojiArtBackgroundImageURL: URL?
+    private var suppressedWarnings = false
     private var alertPresentedCountWithURL = 0
     private var previousURL: URL?
     private var embeddedDocInfo: DocumentInfoViewController?
     
-    private var emojiArtBackgroundImage: (url: URL?, image: UIImage?) {
-        get {
-            return (_emojiArtBackgroundImageURL, emojiArtView.backgroundImage)
-        }
-        set {
-            _emojiArtBackgroundImageURL = newValue.url
-            emojiArtView.backgroundImage = newValue.image
-            let size = newValue.image?.size ?? CGSize.zero
+    private var emojiArtBackgroundImage: ImageSource? {
+        didSet {
+            emojiArtView.backgroundImage = emojiArtBackgroundImage?.image
+            let size = emojiArtBackgroundImage?.image.size ?? CGSize.zero
             emojiArtView.frame = CGRect(origin: CGPoint.zero, size: size)
             scrollViewHeight?.constant = size.height
             scrollViewWidth?.constant = size.width
@@ -85,7 +103,12 @@ final class EmojiArtViewController: UIViewController {
     }
     
     // MARK: - Storyboard
-    
+        
+    @IBOutlet private weak var cameraButton: UIBarButtonItem! {
+        didSet {
+            cameraButton.isEnabled = UIImagePickerController.isSourceTypeAvailable(.camera)
+        }
+    }
     @IBOutlet private weak var emojiCollectionView: UICollectionView! {
         didSet {
             emojiCollectionView.dataSource = self
@@ -116,32 +139,34 @@ final class EmojiArtViewController: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        documentObserver = notificationCenter.addObserver(
-            forName: UIDocument.stateChangedNotification,
-            object: document,
-            queue: .main,
-            using: { _ in
-                if self.document?.documentState == .normal,
-                    let docInfoVC = self.embeddedDocInfo {
-                    docInfoVC.document = self.document
-                    self.embeddedDocInfoWidth.constant = docInfoVC.preferredContentSize.width
-                    self.embeddedDocInfoHeight.constant = docInfoVC.preferredContentSize.height
+        if document?.documentState != .normal {
+            documentObserver = notificationCenter.addObserver(
+                forName: UIDocument.stateChangedNotification,
+                object: document,
+                queue: .main,
+                using: { _ in
+                    if self.document?.documentState == .normal,
+                        let docInfoVC = self.embeddedDocInfo {
+                        docInfoVC.document = self.document
+                        self.embeddedDocInfoWidth.constant = docInfoVC.preferredContentSize.width
+                        self.embeddedDocInfoHeight.constant = docInfoVC.preferredContentSize.height
+                    }
+            })
+            document?.open(completionHandler: { success in
+                if success {
+                    self.title = self.document?.localizedName
+                    self.emojiArt = self.document?.emojiArt
+                    self.emojiArtViewObserver = self.notificationCenter.addObserver(
+                        forName: .emojiArtViewDidChange,
+                        object: self.emojiArtView,
+                        queue: .main,
+                        using: { _ in
+                            self.documentChanged()
+                    }
+                    )
                 }
-        })
-        document?.open(completionHandler: { success in
-            if success {
-                self.title = self.document?.localizedName
-                self.emojiArt = self.document?.emojiArt
-                self.emojiArtViewObserver = self.notificationCenter.addObserver(
-                    forName: .emojiArtViewDidChange,
-                    object: self.emojiArtView,
-                    queue: .main,
-                    using: { _ in
-                        self.documentChanged()
-                }
-                )
-            }
-        })
+            })
+        }
     }
     
     // MARK: - Navigation
@@ -157,6 +182,14 @@ final class EmojiArtViewController: UIViewController {
         } else if segue.identifier == "Embed Document Info" {
             embeddedDocInfo = segue.destination.contents as? DocumentInfoViewController
         }
+    }
+    
+    @IBAction private func takeBackgroundPhoto(_ sender: UIBarButtonItem) {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.allowsEditing = true
+        picker.delegate = self
+        present(picker, animated: true)
     }
     
     @IBAction private func addEmoji() {
@@ -178,6 +211,69 @@ final class EmojiArtViewController: UIViewController {
     
     @IBAction private func closeDocument(by segue: UIStoryboardSegue) {
         closeDocument()
+    }
+    
+    private func documentChanged() {
+        document?.emojiArt = emojiArt
+        if document?.emojiArt != nil {
+            document?.updateChangeCount(.done)
+        }
+    }
+    
+    private func presentWarning(with title: String, message: String, for url: URL? = nil) {
+        if suppressedWarnings, previousURL == url {
+            alertPresentedCountWithURL += 1
+            if alertPresentedCountWithURL == 3 {
+                suppressedWarnings = false
+                alertPresentedCountWithURL = 0
+            }
+        }
+        guard !suppressedWarnings || url == nil else { return }
+        let alert = UIAlertController(
+            title: title,
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK",
+                                      style: .default))
+        if url != nil {
+            alert.addAction(UIAlertAction(title: "Stop Warning",
+                                          style: .destructive,
+                                          handler: { _ in
+                                            self.suppressedWarnings = true
+            }))
+            previousURL = url
+        }
+        present(alert, animated: true)
+    }
+    
+    private func addEmojisToView(from emojiArt: EmojiArt?) {
+        emojiArt?.emojis.forEach {
+            let attributedText = $0.text.attributedString(withTextStyle: .body, ofSize: CGFloat($0.size))
+            self.emojiArtView.addLabel(with: attributedText, centeredAt: CGPoint(x: $0.x, y: $0.y))
+        }
+    }
+}
+
+    // MARK: - Camera
+
+extension EmojiArtViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.presentingViewController?.dismiss(animated: true)
+    }
+    
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        if let image = ((info[.editedImage] ?? info[.originalImage]) as? UIImage)?.scaled(by: 0.25) {
+            if let imageData = image.jpegData(compressionQuality: 1) {
+                emojiArtBackgroundImage = .local(imageData, image)
+                documentChanged()
+            } else {
+                presentWarning(with: "Input from camera failed",
+                               message: "Something wrong with shot")
+            }
+        }
+        picker.presentingViewController?.dismiss(animated: true)
     }
 }
 
@@ -338,26 +434,25 @@ extension EmojiArtViewController: UIDropInteractionDelegate {
     func dropInteraction(_ interaction: UIDropInteraction, performDrop session: UIDropSession) {
         imageFetcherManager = ImageFetcherManager() { (url, image) in
             DispatchQueue.main.async {
-                self.emojiArtBackgroundImage = (url.imageURL, image)
-                self.documentChanged()
+                if image == self.imageFetcherManager.backupImage {
+                    if let imageData = image.jpegData(compressionQuality: 1) {
+                        self.emojiArtBackgroundImage = .local(imageData, image)
+                        self.documentChanged()
+                    } else {
+                        self.presentWarning(with: "Image Transfer Failed",
+                                                  message: "Couldn't transfer the dropped image from its source. \nShow this warning in the future?",
+                                                  for: url)
+                    }
+                } else {
+                    self.emojiArtBackgroundImage = .remote(url, image)
+                    self.documentChanged()
+                }
             }
         }
         
         session.loadObjects(ofClass: NSURL.self) { nsURLs in
             if let url = (nsURLs.first as? URL)?.imageURL {
-                DispatchQueue.global(qos: .userInitiated).async {
-                    if let imageData = try? Data(contentsOf: url),
-                        let image = UIImage(data: imageData) {
-                        DispatchQueue.main.async {
-                            self.emojiArtBackgroundImage = (url, image)
-                            self.documentChanged()
-                        }
-                    } else {
-                        DispatchQueue.main.async {
-                            self.presentBadURLWarning(for: url)
-                        }
-                    }
-                }
+                self.imageFetcherManager.fetch(url)
             }
         }
         session.loadObjects(ofClass: UIImage.self) { images in
@@ -365,38 +460,6 @@ extension EmojiArtViewController: UIDropInteractionDelegate {
                 self.imageFetcherManager.backupImage = image
             }
         }
-    }
-    
-    private func documentChanged() {
-        document?.emojiArt = emojiArt
-        if document?.emojiArt != nil {
-            document?.updateChangeCount(.done)
-        }
-    }
-    
-    private func presentBadURLWarning(for url: URL?) {
-        if suppressedBadURLWarnings, previousURL == url {
-            alertPresentedCountWithURL += 1
-            if alertPresentedCountWithURL == 3 {
-                suppressedBadURLWarnings = false
-                alertPresentedCountWithURL = 0
-            }
-        }
-        guard !suppressedBadURLWarnings else { return }
-        previousURL = url
-        let alert = UIAlertController(
-            title: "Image Transfer Failed",
-            message: "Couldn't transfer the dropped image from its source. \nShow this warning in the future?",
-            preferredStyle: .alert
-        )
-        alert.addAction(UIAlertAction(title: "Keep Warning",
-                                      style: .default))
-        alert.addAction(UIAlertAction(title: "Stop Warning",
-                                      style: .destructive,
-                                      handler: { _ in
-                                        self.suppressedBadURLWarnings = true
-        }))
-        present(alert, animated: true)
     }
 }
 

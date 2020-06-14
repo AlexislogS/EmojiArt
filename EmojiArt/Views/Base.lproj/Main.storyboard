@@ -189,15 +189,23 @@
                                 <action selector="closeDocument:" destination="JVN-32-9JP" id="Gmq-Xx-SUQ"/>
                             </connections>
                         </barButtonItem>
-                        <barButtonItem key="rightBarButtonItem" title="Inspect" id="xyj-kz-B8g">
-                            <connections>
-                                <segue destination="OPW-xJ-KPH" kind="popoverPresentation" identifier="Show Document Info" popoverAnchorBarButtonItem="xyj-kz-B8g" id="kKd-4o-GQ6">
-                                    <popoverArrowDirection key="popoverArrowDirection" up="YES" down="YES" left="YES" right="YES"/>
-                                </segue>
-                            </connections>
-                        </barButtonItem>
+                        <rightBarButtonItems>
+                            <barButtonItem title="Inspect" id="xyj-kz-B8g">
+                                <connections>
+                                    <segue destination="OPW-xJ-KPH" kind="popoverPresentation" identifier="Show Document Info" popoverAnchorBarButtonItem="xyj-kz-B8g" id="kKd-4o-GQ6">
+                                        <popoverArrowDirection key="popoverArrowDirection" up="YES" down="YES" left="YES" right="YES"/>
+                                    </segue>
+                                </connections>
+                            </barButtonItem>
+                            <barButtonItem systemItem="camera" id="xrt-Z6-efV">
+                                <connections>
+                                    <action selector="takeBackgroundPhoto:" destination="JVN-32-9JP" id="OM3-rA-pEJ"/>
+                                </connections>
+                            </barButtonItem>
+                        </rightBarButtonItems>
                     </navigationItem>
                     <connections>
+                        <outlet property="cameraButton" destination="xrt-Z6-efV" id="bFy-Ap-2wA"/>
                         <outlet property="dropZone" destination="mi2-tO-Pqg" id="Hb1-lZ-uBX"/>
                         <outlet property="embeddedDocInfoHeight" destination="TyP-p2-VbO" id="zHr-0O-qyU"/>
                         <outlet property="embeddedDocInfoWidth" destination="UYb-KJ-K1D" id="8IC-ZE-A3M"/>
@@ -324,6 +332,7 @@
                             <constraint firstItem="k3f-lG-0J4" firstAttribute="centerX" secondItem="9jC-mc-2De" secondAttribute="centerX" id="RAp-Px-U8M"/>
                             <constraint firstItem="k3f-lG-0J4" firstAttribute="centerY" secondItem="9jC-mc-2De" secondAttribute="centerY" id="gD5-6d-ohD"/>
                         </constraints>
+                        <viewLayoutGuide key="safeArea" id="3ns-NH-Ot6"/>
                     </view>
                     <connections>
                         <outlet property="createdLabel" destination="Llr-G0-W01" id="Tir-U7-9gg"/>
@@ -333,7 +342,7 @@
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="Yro-hk-MnV" userLabel="First Responder" customClass="UIResponder" sceneMemberID="firstResponder"/>
             </objects>
-            <point key="canvasLocation" x="1672" y="1105"/>
+            <point key="canvasLocation" x="1672" y="1137"/>
         </scene>
     </scenes>
 </document>

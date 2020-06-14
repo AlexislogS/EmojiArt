@@ -84,5 +84,7 @@
 	<array>
 		<dict/>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Please allow $(PRODUCT_NAME) access to camera. You can change it in settings.</string>
 </dict>
 </plist>
